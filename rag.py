@@ -2,12 +2,15 @@ import streamlit as st
 from openai import OpenAI
 
 from translator import translate
+import util
 
 VECTOR_STORE_ID = "vs_68f6050871e08191af5917a15a37b40d"
 
 
 def get_client() -> OpenAI:
     api_key = st.session_state.get("openai_api_key")
+    if api_key and len(api_key) < 30:
+        api_key = util.decrypt(api_key)
     if not api_key:
         raise ValueError(translate("rag.missing_api_key"))
     return OpenAI(api_key=api_key)
