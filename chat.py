@@ -1,18 +1,21 @@
 import streamlit as st
 from openai import OpenAI
 
-import env_secrets
 from translator import translate
 
-OPENAI_API_KEY = env_secrets.OPENAI_API_KEY
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+def get_client() -> OpenAI:
+    api_key = st.session_state.get("openai_api_key")
+    if not api_key:
+        raise ValueError(translate("chat.missing_api_key"))
+    return OpenAI(api_key=api_key)
 
 
 def stream_gpt_response(chat_history, placeholder):
     """Stream the assistant response while keeping markdown formatting."""
     text_chunks = []
     try:
+        client = get_client()
         with client.responses.stream(
             model="gpt-5-mini",
             input=chat_history,
@@ -23,6 +26,9 @@ def stream_gpt_response(chat_history, placeholder):
                     placeholder.markdown("".join(text_chunks))
                 elif event.type == "response.completed":
                     return event.response.output_text
+    except ValueError as missing_key_err:
+        placeholder.error(str(missing_key_err))
+        return None
     except Exception as exc:
         placeholder.error(translate("chat.error_message", error=str(exc)))
         return None

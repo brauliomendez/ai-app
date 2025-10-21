@@ -4,11 +4,14 @@ from io import BytesIO
 import streamlit as st
 from openai import OpenAI
 
-import env_secrets
 from translator import translate
 
-OPENAI_API_KEY = env_secrets.OPENAI_API_KEY
-client = OpenAI(api_key=OPENAI_API_KEY)
+
+def get_client() -> OpenAI:
+    api_key = st.session_state.get("openai_api_key")
+    if not api_key:
+        raise ValueError(translate("images.missing_api_key"))
+    return OpenAI(api_key=api_key)
 
 SIZE_OPTIONS = [
     ("images.size_option.rectangle", "1024x1024"),
@@ -30,6 +33,7 @@ if "image_size_key" not in st.session_state:
 
 def generate_image(prompt: str, size: str) -> bytes:
     """Generate an image using OpenAI and return its bytes."""
+    client = get_client()
     response = client.images.generate(
         model="gpt-image-1",
         prompt=prompt,

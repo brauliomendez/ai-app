@@ -1,19 +1,23 @@
 import streamlit as st
 from openai import OpenAI
 
-import env_secrets
 from translator import translate
 
-OPENAI_API_KEY = env_secrets.OPENAI_API_KEY
-VECTOR_STORE_ID = env_secrets.VECTOR_STORE_ID
+VECTOR_STORE_ID = "vs_68f6050871e08191af5917a15a37b40d"
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+
+def get_client() -> OpenAI:
+    api_key = st.session_state.get("openai_api_key")
+    if not api_key:
+        raise ValueError(translate("rag.missing_api_key"))
+    return OpenAI(api_key=api_key)
 
 
 def stream_vector_search(chat_history, placeholder):
     """Stream the assistant response with markdown updates."""
     text_chunks = []
     try:
+        client = get_client()
         with client.responses.stream(
             model="gpt-5-mini",
             input=chat_history,
@@ -30,6 +34,9 @@ def stream_vector_search(chat_history, placeholder):
                     placeholder.markdown("".join(text_chunks))
                 elif event.type == "response.completed":
                     return event.response.output_text
+    except ValueError as missing_key_err:
+        placeholder.error(str(missing_key_err))
+        return None
     except Exception as exc:
         placeholder.error(translate("rag.error_message", error=str(exc)))
         return None
@@ -38,6 +45,7 @@ def stream_vector_search(chat_history, placeholder):
 
 
 def upload_and_index_file(file):
+    client = get_client()
     uploaded_file = client.files.create(
         file=file,
         purpose="assistants"
@@ -49,6 +57,7 @@ def upload_and_index_file(file):
 
 
 def get_indexed_files():
+    client = get_client()
     files = client.vector_stores.files.list(vector_store_id=VECTOR_STORE_ID)
     if len(files.data) == 0:
         return []
@@ -65,6 +74,7 @@ def get_indexed_files():
 
 
 def delete_file(file_id):
+    client = get_client()
     deleted_vs_file = client.vector_stores.files.delete(
         vector_store_id=VECTOR_STORE_ID,
         file_id=file_id
@@ -86,6 +96,10 @@ if "chat_history_rag" not in st.session_state:
     reset_chat_history()
 
 # UI
+
+if not st.session_state.get("openai_api_key"):
+    st.info(translate("rag.missing_api_key"))
+    st.stop()
 
 st.title(translate("rag.title"))
 st.divider()

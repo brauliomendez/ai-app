@@ -3,11 +3,14 @@ from io import BytesIO
 import streamlit as st
 from openai import OpenAI
 
-import env_secrets
 from translator import translate
 
-OPENAI_API_KEY = env_secrets.OPENAI_API_KEY
-client = OpenAI(api_key=OPENAI_API_KEY)
+
+def get_client() -> OpenAI:
+    api_key = st.session_state.get("openai_api_key")
+    if not api_key:
+        raise ValueError(translate("audio.missing_api_key"))
+    return OpenAI(api_key=api_key)
 
 VOICE_OPTIONS = [
     "alloy",
@@ -34,6 +37,7 @@ if "tts_voice" not in st.session_state:
 
 
 def synthesize_speech(text: str, voice: str) -> bytes:
+    client = get_client()
     response = client.audio.speech.create(
         model="gpt-4o-mini-tts",
         voice=voice,
